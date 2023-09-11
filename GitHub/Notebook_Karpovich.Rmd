@@ -7,9 +7,10 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-install.packages(c("readr", "tibble"))
+install.packages(c("readr", "tibble", "dplyr"))
 library(readr)
 library(tibble)
+library(dplyr)
 ```
 
 
@@ -17,6 +18,7 @@ library(tibble)
 data <- read_tsv("C:/Users/79214/Downloads/data_tsv.tsv")
 as_tibble(data)
 ```
+
 ```{r}
 data %>% view()
 ```
@@ -31,6 +33,34 @@ psych::describe(data)
 ```
 ```{r}
 prop.table(table(data$Группа, data$'Группа крови'))
+```
+```{r}
+data_1 <- tibble(var_1 = "var 1", var_2 = "var 2", var_3 = "var 3")
+data_2 <- tibble(var_1 = "var 1", var_2 = "var 2")
+data_3 <- tibble(var_1 = "var 1", var_2 = "var 2")
+
+data_1 %>% bind_rows(data_2) %>% bind_rows(data_3)
+```
+```{r}
+data %>% group_by("Группа") %>% ungroup()
+```
+
+```{r}
+data %>%
+  split(~ `Группа`)
+```
+
+```{r}
+data %>%
+  select(`Группа крови`, `Рост`)
+```
+```{r}
+data %>%
+  select(`Группа`, where(is.numeric))
+```
+
+```{r}
+data %>% select(contains("_E1"))
 ```
 
 
