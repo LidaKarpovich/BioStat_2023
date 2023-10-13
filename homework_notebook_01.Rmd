@@ -1,0 +1,507 @@
+---
+title: "automatization_notebook"
+output: word_document
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(beeswarm)
+library(RColorBrewer)
+library(nortest)
+library(rcompanion)
+library(corrplot)
+
+
+```
+
+# Чтение данных
+
+В вашем варианте нужно использовать датасеты cardio_train_big или cardio_train_not_too_big.
+
+```{r}
+cardio_train_big <- read.csv2("C:/Users/79214/Downloads/biostat_homework_092023/biostat_homework_092023/data/raw/cardio_train_big.csv")
+
+```
+
+# Выведите общее описание данных
+
+```{r}
+summary(cardio_train_big)
+
+```
+
+# Очистка данных
+
+1)  Уберите переменные, в которых пропущенных значений больше 20% или уберите субъектов со слишком большим количеством пропущенных значений. Или совместите оба варианта. Напишите обоснование, почему вы выбрали тот или иной вариант:
+
+**В данном датафрейме нет пропузенных значений, поэтому осталяем всё как есть**:
+
+```{r}
+sum(is.na(cardio_train_big))
+
+```
+
+2)  Переименуйте переменные в человекочитаемый вид (что делать с пробелами в названиях?);
+
+3)  В соответствии с описанием данных приведите переменные к нужному типу (numeric или factor);
+
+4)  Отсортируйте данные по возрасту по убыванию;
+
+5)  Сохраните в файл outliers.csv субъектов, которые являются выбросами (например, по правилу трёх сигм) --- это необязательное задание со звёздочкой;
+
+6)  Присвойте получившийся датасет переменной "cleaned_data".
+
+```{r}
+cardio_train_big <- cardio_train_big %>% 
+  rename("glucose" = "gluc",
+         "smoking" = "smoke",
+         "alcohol_intake" = "alco",
+         "physical_activity" = "active",
+         "cardiovascular_disease" = "cardio")
+
+cardio_train_big$gender <- as.character(cardio_train_big$gender)
+cardio_train_big$cholesterol <- as.character(cardio_train_big$cholesterol)
+cardio_train_big$glucose <- as.character(cardio_train_big$glucose)
+cardio_train_big$smoking <- as.character(cardio_train_big$smoking)
+cardio_train_big$alcohol_intake <- as.character(cardio_train_big$alcohol_intake)
+cardio_train_big$physical_activity <- as.character(cardio_train_big$physical_activity)
+cardio_train_big$cardiovascular_disease <- as.character(cardio_train_big$cardiovascular_disease)
+
+cardio_train_big$weight <- as.numeric(cardio_train_big$weight)
+cardio_train_big$ap_hi <- as.numeric(cardio_train_big$ap_hi)
+cardio_train_big$ap_lo <- as.numeric(cardio_train_big$ap_lo)
+
+cardio_train_big %>%
+  arrange(desc(cardio_train_big$age))
+
+cleaned_data <- cardio_train_big
+
+#пыталась запихнуть код ниже в функцию, но не получилось:(, не удалось правильно зациклить с выводом 2-х фреймов: cleand_data и outliers
+
+outliers_1 <- cleaned_data %>%
+  filter(cleaned_data$ap_lo <= 0 | cleaned_data$ap_lo >= 150)
+
+cleaned_data$ap_lo <- ifelse(cleaned_data$ap_lo <= 0 | cleaned_data$ap_lo >= 150, NA, cleaned_data$ap_lo)
+cleaned_data <- na.omit(cleaned_data)
+
+outliers_2 <- cleaned_data %>%
+  filter(cleaned_data$ap_hi <= 0 | cleaned_data$ap_hi >= 250)
+
+cleaned_data$ap_hi <- ifelse(cleaned_data$ap_hi <= 0 | cleaned_data$ap_hi >= 250, NA, cleaned_data$ap_hi)
+cleaned_data <- na.omit(cleaned_data)
+
+mean_height <- mean(cleaned_data$height)
+mean_weight <- mean(cleaned_data$weight)
+mean_ap_lo <- mean(cleaned_data$ap_lo)
+mean_ap_hi <- mean(cleaned_data$ap_hi)
+
+sd_height <- sd(cleaned_data$height)
+sd_weight <- sd(cleaned_data$weight)
+sd_ap_lo <- sd(cleaned_data$ap_lo)
+sd_ap_hi <- sd(cleaned_data$ap_hi)
+
+
+outliers_3 <- cleaned_data %>%
+  filter(cleaned_data$height <= (mean_height - 3 * sd_height) | cleaned_data$height >= (mean_height + 3 * sd_height))
+
+cleaned_data$height <- ifelse(cleaned_data$height <= (mean_height - 3 * sd_height) | cleaned_data$height >= (mean_height + 3 * sd_height), NA, cleaned_data$height)
+
+cleaned_data <- na.omit(cleaned_data)
+
+outliers_4 <- cleaned_data %>%
+  filter(cleaned_data$weight <= (mean_weight - 3 * sd_weight) | cleaned_data$weight >= (mean_weight + 3 * sd_weight))
+
+cleaned_data$weight <- ifelse(cleaned_data$weight <= (mean_weight - 3 * sd_weight) | cleaned_data$weight >= (mean_weight + 3 * sd_weight), NA, cleaned_data$weight)
+
+cleaned_data <- na.omit(cleaned_data)
+
+outliers_5 <- cleaned_data %>%
+  filter(cleaned_data$ap_lo <= (mean_ap_lo - 3 * sd_ap_lo) | cleaned_data$ap_lo >= (mean_ap_lo + 3 * sd_ap_lo))
+
+cleaned_data$ap_lo <- ifelse(cleaned_data$ap_lo <= (mean_ap_lo - 3 * sd_ap_lo) | cleaned_data$ap_lo >= (mean_ap_lo + 3 * sd_ap_lo), NA, cleaned_data$ap_lo)
+
+cleaned_data <- na.omit(cleaned_data)
+
+outliers_6 <- cleaned_data %>%
+  filter(cleaned_data$ap_hi <= (mean_ap_hi - 3 * sd_ap_hi) | cleaned_data$ap_hi >= (mean_ap_hi + 3 * sd_ap_hi))
+
+cleaned_data$ap_hi <- ifelse(cleaned_data$ap_hi <= (mean_ap_hi - 3 * sd_ap_hi) | cleaned_data$ap_hi >= (mean_ap_hi + 3 * sd_ap_hi), NA, cleaned_data$ap_hi)
+
+cleaned_data <- na.omit(cleaned_data)
+
+outliers_1_2 <- union(outliers_1, outliers_2)
+outliers_3_4 <- union(outliers_3, outliers_4)
+outliers_5_6 <- union(outliers_5, outliers_6)
+outliers1234 <- union(outliers_1_2, outliers_3_4)
+outliers <- union(outliers1234, outliers_5_6)
+
+write.csv2(outliers, "C:/Users/79214/Downloads/biostat_homework_092023/biostat_homework_092023/data/raw/outliers.csv")
+
+cleaned_data <- cleaned_data %>% 
+  rename("systolicBP" = "ap_hi",
+         "diastolicBP" = "ap_lo")
+
+```
+
+# Сколько осталось переменных?
+
+```{r}
+cat(sprintf("[%d] %s", seq_along(cleaned_data), names(cleaned_data)), "\n")
+
+```
+
+# Сколько осталось случаев?
+
+```{r}
+nrow(cleaned_data)
+
+```
+
+# Есть ли в данных идентичные строки?
+
+```{r}
+sum(duplicated(cleaned_data))
+
+```
+
+# Сколько всего переменных с пропущенными значениями в данных и сколько пропущенных точек в каждой такой переменной?
+
+```{r}
+sum(is.na(cleaned_data))
+
+```
+
+# Описательные статистики
+
+## Количественные переменные
+
+1)  Рассчитайте для всех количественных переменных для каждой группы (наличие или отсутствие сердечно-сосудистых заболеваний):
+
+1.1) Количество значений;
+
+1.2) Количество пропущенных значений;
+
+1.3) Среднее;
+
+1.4) Медиану;
+
+1.5) Стандартное отклонение;
+
+1.6) 25% квантиль и 75% квантиль;
+
+1.7) Интерквартильный размах;
+
+1.8) Минимум;
+
+1.9) Максимум;
+
+1.10) 95% ДИ для среднего - задание со звёздочкой.
+
+```{r}
+statistics <- list(
+      `Количество значений` = ~sum(!is.na(.x)) %>% as.character(),
+      `Количество пропущенных значений` = ~sum(is.na(.x)) %>% as.character(),
+      `Среднее` = ~ifelse(sum(!is.na(.x)) == 0, "Н/П*", mean(.x, na.rm = TRUE) %>% round(2) %>% as.character()),
+      `Медиана` = ~ifelse(sum(!is.na(.x)) == 0, "Н/П*", median(.x, na.rm = TRUE) %>% round(2) %>% as.character()),
+      `Стандартное отклонение` = ~ifelse(sum(!is.na(.x)) < 3, "Н/П*", sd(.x, na.rm = TRUE) %>% round(2) %>% as.character()),
+      `25% квантиль` = ~ifelse(sum(!is.na(.x)) == 0, "Н/П*", paste0(quantile(.x, 0.25, na.rm = TRUE) %>% round(2) %>% as.character())),
+      `75% квантиль` = ~ifelse(sum(!is.na(.x)) == 0, "Н/П*", paste0(quantile(.x, 0.75, na.rm = TRUE) %>% round(2) %>% as.character())),                       `Интерквартильный размах` = ~ifelse(sum(!is.na(.x)) == 0, "Н/П*", paste0(quantile(.x, 0.25, na.rm = TRUE) %>% round(2), " - ", quantile(.x, 0.75, na.rm = TRUE) %>% round(2) %>% as.character())),
+      `Минимум` = ~ifelse(sum(!is.na(.x)) == 0, "Н/П*", paste0(min(.x, na.rm = TRUE) %>% round(2) %>% as.character())),
+      `Максимум` = ~ifelse(sum(!is.na(.x)) == 0, "Н/П*", paste0(max(.x, na.rm = TRUE) %>% round(2) %>% as.character())),
+      `95% ДИ для среднего` = ~sd(.x, na.rm = TRUE) %>% round(2) %>% as.character()
+)
+
+statistics_healthy <- cleaned_data %>%
+  select(`cardiovascular_disease`, where(is.numeric), -c(`id`)) %>%
+  group_by(`cardiovascular_disease`) %>%
+  filter(`cardiovascular_disease` == "0") %>%
+  summarise(across(where(is.numeric), statistics)) %>%
+  pivot_longer(!`cardiovascular_disease`) %>%
+  separate(name, into = c("Переменная", "Статистика"), sep = "_") %>%
+  rename(`Значение` = value)
+    
+ statistics_sick <- cleaned_data %>%
+  select(`cardiovascular_disease`, where(is.numeric), -c(`id`)) %>%
+  group_by(`cardiovascular_disease`) %>%
+  filter(`cardiovascular_disease` == "1") %>%
+  summarise(across(where(is.numeric), statistics)) %>%
+  pivot_longer(!`cardiovascular_disease`) %>%
+  separate(name, into = c("Переменная", "Статистика"), sep = "_") %>%
+  rename(`Значение` = value)   
+
+```
+
+## Категориальные переменные
+
+1)  Рассчитайте для всех категориальных переменных для каждой группы (наличие или отсутствие сердечно-сосудистых заболеваний):
+
+1.1) Абсолютное количество;
+
+1.2) Относительное количество внутри группы;
+
+!!!!!!!!!1.3) 95% ДИ для доли внутри группы - задание со звёздочкой.
+
+```{r}
+statistics_gender <- cleaned_data %>%
+  select(`cardiovascular_disease`, where(is.character)) %>%
+  count(`cardiovascular_disease`, `gender`) %>%
+  group_by(`cardiovascular_disease`) %>%
+  mutate(`Относительное количество внутри группы` = (n / sum(n)) %>% round(4) %>% `*` (100) %>% str_c("%")) %>%
+  ungroup() %>%
+  mutate(`Абсолютное количество` = (n / sum(n)) %>% round(4) %>% `*` (100) %>% str_c("%"))
+  
+statistics_cholesterol <- cleaned_data %>%
+  select(`cardiovascular_disease`, where(is.character)) %>%
+  count(`cardiovascular_disease`, `cholesterol`) %>%
+  group_by(`cardiovascular_disease`) %>%
+  mutate(`Относительное количество внутри группы` = (n / sum(n)) %>% round(4) %>% `*` (100) %>% str_c("%")) %>%
+  ungroup() %>%
+  mutate(`Абсолютное количество` = (n / sum(n)) %>% round(4) %>% `*` (100) %>% str_c("%"))
+  
+statistics_glucose <- cleaned_data %>%
+  select(`cardiovascular_disease`, where(is.character)) %>%
+  count(`cardiovascular_disease`, `glucose`) %>%
+  group_by(`cardiovascular_disease`) %>%
+  mutate(`Относительное количество внутри группы` = (n / sum(n)) %>% round(4) %>% `*` (100) %>% str_c("%")) %>%
+  ungroup() %>%
+  mutate(`Абсолютное количество` = (n / sum(n)) %>% round(4) %>% `*` (100) %>% str_c("%"))
+  
+statistics_smoking <- cleaned_data %>%
+  select(`cardiovascular_disease`, where(is.character)) %>%
+  count(`cardiovascular_disease`, `smoking`) %>%
+  group_by(`cardiovascular_disease`) %>%
+  mutate(`Относительное количество внутри группы` = (n / sum(n)) %>% round(4) %>% `*` (100) %>% str_c("%")) %>%
+  ungroup() %>%
+  mutate(`Абсолютное количество` = (n / sum(n)) %>% round(4) %>% `*` (100) %>% str_c("%"))
+
+statistics_alcohol_intake <- cleaned_data %>%
+  select(`cardiovascular_disease`, where(is.character)) %>%
+  count(`cardiovascular_disease`, `alcohol_intake`) %>%
+  group_by(`cardiovascular_disease`) %>%
+  mutate(`Относительное количество внутри группы` = (n / sum(n)) %>% round(4) %>% `*` (100) %>% str_c("%")) %>%
+  ungroup() %>%
+  mutate(`Абсолютное количество` = (n / sum(n)) %>% round(4) %>% `*` (100) %>% str_c("%"))
+
+statistics_physical_activity <- cleaned_data %>%
+  select(`cardiovascular_disease`, where(is.character)) %>%
+  count(`cardiovascular_disease`, `physical_activity`) %>%
+  group_by(`cardiovascular_disease`) %>%
+  mutate(`Относительное количество внутри группы` = (n / sum(n)) %>% round(4) %>% `*` (100) %>% str_c("%")) %>%
+  ungroup() %>%
+  mutate(`Абсолютное количество` = (n / sum(n)) %>% round(4) %>% `*` (100) %>% str_c("%"))
+
+```
+
+# Визуализация
+
+## Количественные переменные
+
+1)  Для каждой количественной переменной сделайте боксплоты по группам. Расположите их либо на отдельных рисунках, либо на одном, но читаемо;
+
+2)  Наложите на боксплоты beeplots - задание со звёздочкой.
+
+3)  Раскрасьте боксплоты с помощью библиотеки RColorBrewer.
+
+```{r}
+plot <- cleaned_data %>%
+  select(`cardiovascular_disease`, where(is.numeric), -c(`id`)) %>%
+  group_by(`cardiovascular_disease`)
+
+plot_age <- boxplot(plot$age ~ plot$cardiovascular_disease,
+        xlab = "Cardiovascular disease", ylab = "Age [days]",
+        names = c("Healthy", "Sick"),
+        col=brewer.pal(3, "Pastel2"))
+beeswarm(plot$age ~ plot$cardiovascular_disease,
+        add = TRUE)
+
+plot_height <- boxplot(plot$height ~ plot$cardiovascular_disease,
+        xlab = "Cardiovascular disease", ylab = "Height [cm]",
+        names = c("Healthy", "Sick"),
+        col=brewer.pal(3, "PRGn"))
+beeswarm(plot$height ~ plot$cardiovascular_disease,
+        add = TRUE)
+
+plot_weight <- boxplot(plot$weight ~ plot$cardiovascular_disease,
+        xlab = "Cardiovascular disease", ylab = "Weight [kg]",
+        names = c("Healthy", "Sick"),
+        col=brewer.pal(3, "PiYG"))
+beeswarm(plot$weight ~ plot$cardiovascular_disease,
+        add = TRUE)
+
+plot_systolicBP <- boxplot(plot$systolicBP ~ plot$cardiovascular_disease,
+        xlab = "Cardiovascular disease", ylab = "Systolic blood preassure [mm Hg]",
+        names = c("Healthy", "Sick"),
+        col=brewer.pal(3, "Spectral"))
+beeswarm(plot$systolicBP ~ plot$cardiovascular_disease,
+        add = TRUE)
+
+plot_diastolicBP <- boxplot(plot$diastolicBP ~ plot$cardiovascular_disease,
+        xlab = "Cardiovascular disease", ylab = "Diastolic blood preassure [mm Hg]",
+        names = c("Healthy", "Sick"),
+        col=brewer.pal(3, "Set2"))
+beeswarm(plot$diastolicBP ~ plot$cardiovascular_disease,
+        add = TRUE)
+
+
+```
+
+## Категориальные переменные
+
+1)  Сделайте подходящие визуализации категориальных переменных. Обоснуйте, почему выбрали именно этот тип.
+
+```{r}
+#Выбрала мозаичный график, потому что он нагляднее отображает частоты двух разных категориальных переменных на одном графике.
+
+counts_gender <- table(cleaned_data$cardiovascular_disease, cleaned_data$gender)
+plot_gender <- mosaicplot(counts_gender, xlab='Cardiovascular disease', ylab='Gender',
+ main='Amount of patients', col='steelblue')
+
+counts_cholesterol <- table(cleaned_data$cardiovascular_disease, cleaned_data$cholesterol)
+plot_cholesterol <- mosaicplot(counts_cholesterol, xlab='Cardiovascular disease', ylab='Cholesterol',
+ main='Amount of patients', col='magenta4')
+
+counts_glucose <- table(cleaned_data$cardiovascular_disease, cleaned_data$glucose)
+plot_glucose <- mosaicplot(counts_glucose, xlab='Cardiovascular disease', ylab='Glucose',
+ main='Amount of patients', col='wheat1')
+
+counts_smoking <- table(cleaned_data$cardiovascular_disease, cleaned_data$smoking)
+plot_smoking <- mosaicplot(counts_smoking, xlab='Cardiovascular disease', ylab='Smoking',
+ main='Amount of patients', col='skyblue1')
+
+counts_alcohol_intake <- table(cleaned_data$cardiovascular_disease, cleaned_data$alcohol_intake)
+plot_gender <- mosaicplot(counts_alcohol_intake, xlab='Cardiovascular disease', ylab='Alcohol intake',
+ main='Amount of patients', col='rosybrown1')
+
+counts_physical_activity <- table(cleaned_data$cardiovascular_disease, cleaned_data$physical_activity)
+plot_gender <- mosaicplot(counts_physical_activity, xlab='Cardiovascular disease', ylab='Physical activity',
+ main='Amount of patients', col='salmon')
+
+```
+
+# Статистические оценки
+
+## Проверка на нормальность
+
+1)  Оцените каждую переменную на соответствие нормальному распределению с помощью теста Шапиро-Уилка. Какие из переменных являются нормальными и как как вы это поняли?
+
+```{r}
+#Из-за того, что наши выборки гораздо больше 5000, мы не можем использовать тест Шапиро-Уилка. Поэтому предлагаю использовать тест Андерсона-Дарлинга.Если значение p-value < 0.05, то мы отвергаем нулевую гипотезу (нормальности распределения) и говорим, что наши данные распределены не нормально. Проверяем только количественные переменные. 
+
+
+ad.test(cleaned_data$age) #A = 500.35, p-value < 2.2e-16 p-value << 0.05 => не является нормальным. Данный тест бесполезен, потому что чисто логически у возраста не должно быть нормального распределения.
+
+ad.test(cleaned_data$height) #A = 94.958, p-value < 2.2e-16 p-value << 0.05 => не является нормальным
+
+ad.test(cleaned_data$weight) #A = 420.74, p-value < 2.2e-16 p-value << 0.05 => не является нормальным
+
+ad.test(cleaned_data$systolicBP) #A = 2572.6, p-value < 2.2e-16 p-value << 0.05 => не является нормальным
+
+ad.test(cleaned_data$diastolicBP) #A = 3964.8, p-value < 2.2e-16 p-value << 0.05 => не является нормальным
+
+```
+
+2)  Постройте для каждой количественной переменной QQ-плот. Отличаются ли выводы от теста Шапиро-Уилка? Какой метод вы бы предпочли и почему?
+
+```{r}
+qqnorm(cleaned_data$age)
+qqline(cleaned_data$age) #рядом с хвостами данные отклоняются от прямой => данные распределенеы не нормально
+
+qqnorm(cleaned_data$height)
+qqline(cleaned_data$height) #рядом с хвостами данные отклоняются от прямой => данные распределенеы не нормально
+
+qqnorm(cleaned_data$weight)
+qqline(cleaned_data$weight) #данные отклоняются от прямой => данные распределенеы не нормально
+
+qqnorm(cleaned_data$systolicBP)
+qqline(cleaned_data$systolicBP) #ступенчатый график => данные распределенеы не нормально
+
+qqnorm(cleaned_data$diastolicBP)
+qqline(cleaned_data$diastolicBP) #ступенчатый график => данные распределенеы не нормально
+
+#данные QQ-plot не отличаются от теста Андерсона-Дарлинга, мне больше нравится тест, потому что там выдается p-value, по которому гораздо проще оценивать результат, чем наглядное оценивание графиков.
+
+```
+
+3)  Ниже напишите, какие ещё методы проверки на нормальность вы знаете и какие у них есть ограничения.
+
+**Для того, чтобы проверить данные на нормальность, можно использовать:
+1-критерий Лиллифорса (специальная версия критерия Колмогорова-Смирнова)
+2-модифицированный критерий хи-квадрат Пирсона
+3-построение гистрограммы
+4-boxplot)**
+
+## Сравнение групп
+
+1)  Сравните группы (переменная **cardio**) по каждой переменной (как количественной, так и категориальной). Для каждой переменной выберите нужный критерий и кратко обоснуйте его выбор в комментариях.
+
+```{r}
+#t-test для количественных переменных использовать не можем, потому что данные распределены не нормально. Будем использовать критерий Манна-Уитни.
+healthy_test <- cleaned_data %>%
+  group_by(`cardiovascular_disease`) %>%
+  filter(`cardiovascular_disease` == "0")
+
+sick_test <- cleaned_data %>%
+  group_by(`cardiovascular_disease`) %>%
+  filter(`cardiovascular_disease` == "1")
+  
+wilcox.test(healthy_test$age, sick_test$age) #W = 403023093, p-value < 2.2e-16 => возраст отличается между группами
+
+wilcox.test(healthy_test$height, sick_test$height) #W = 566162851, p-value = 7.417e-05 => рост отличается между группами
+
+wilcox.test(healthy_test$weight, sick_test$weight) #W = 445350928, p-value < 2.2e-16 => вес отличается между группами
+
+wilcox.test(healthy_test$systolicBP, sick_test$systolicBP) #W = 281119360, p-value < 2.2e-16 => систолическое давление отличается между группами
+
+wilcox.test(healthy_test$diastolicBP, sick_test$diastolicBP) #W = 349536231, p-value < 2.2e-16 => диастолическое давление отличается между группами
+
+#для категориальных данных возьмем тест Фишера, потому что он более точный, чем Хи-квадрат. Хи-квадрат тоже используем для данных, где больше 2-х переменных.
+
+fisher.test(cleaned_data$gender, cleaned_data$cardiovascular_disease) #p-value = 0.3369 => разницы нет между группами
+
+chisq.test(cleaned_data$cholesterol, cleaned_data$cardiovascular_disease) #p-value < 2.2e-16 => есть разница между группами
+
+chisq.test(cleaned_data$glucose, cleaned_data$cardiovascular_disease) #p-value < 2.2e-16 => есть разница между группами
+
+ fisher.test(cleaned_data$smoking, cleaned_data$cardiovascular_disease) #p-value = 1.121e-06 => есть разница между группами
+ 
+fisher.test(cleaned_data$alcohol_intake, cleaned_data$cardiovascular_disease) #p-value = 0.007126 => есть разница между группами
+
+fisher.test(cleaned_data$physical_activity, cleaned_data$cardiovascular_disease) #p-value < 2.2e-16 => есть разница между группами
+    
+
+```
+
+# Далее идут **необязательные** дополнительные задания, которые могут принести вам дополнительные баллы в том числе в случае ошибок в предыдущих
+
+## Корреляционный анализ
+
+1)  Создайте корреляционную матрицу с визуализацией и поправкой на множественные сравнения. Объясните, когда лучше использовать корреляционные матрицы и в чём минусы и плюсы корреляционных исследований.
+
+```{r}
+data_cor <- cleaned_data %>%
+  select(where(is.numeric), -c(`id`)) 
+cor_matrix <- cor(data_cor)
+corrplot(cor_matrix, method = "circle")
+
+cleaned_data %>%
+  select(where(is.numeric), -c(`id`)) %>%
+  psych::corr.test(adjust = "bonferroni")
+
+#лучше использовать, когда много количественных переменных, корреляционные исследования не могут показать какая именно зависимость между переменными, т.е кто от чего зависит
+
+```
+
+## Моделирование
+
+1)  Постройте регрессионную модель для переменной **cardio**. Опишите процесс построения
+
+```{r}
+
+
+
+```
